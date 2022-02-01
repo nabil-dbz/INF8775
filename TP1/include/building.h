@@ -10,7 +10,7 @@ class Building {
       this->height = height;
     }
     std::pair<Point, Point> get_critical_points();
-  private:
+    bool includes(Point point);
     uint32_t left;
     uint32_t right;
     uint32_t height;

@@ -1,7 +1,9 @@
 #include "building.h"
 
 std::pair<Point, Point> Building::get_critical_points(){
-    const Point first = Point(left, height);
-    const Point second = Point(right, 0);
-    return std::make_pair(first, second);
-};
+    return std::make_pair(Point(left, height), Point(right, 0));
+}
+
+bool Building::includes(Point point){
+    return point.x >= left && point.x < right && point.y < height;
+}
