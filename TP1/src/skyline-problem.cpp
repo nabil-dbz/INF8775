@@ -4,14 +4,10 @@
 #include <sstream>
 #include <algorithm>
 
-SkylineProblem::SkylineProblem(const std::string& path) {
-    buildings_length = -1;
+SkylineProblem::SkylineProblem(const std::string& path):
+    buildings_length(0), recursive_algorithm_cutoff(0)
+{
     parse_file(path);
-    for (int index = 0; index < buildings.size(); index++) {
-        std::cout << "building " << index + 1 << std::endl;
-        std::cout << buildings[index]->get_critical_points().first.x << "," << buildings[index]->get_critical_points().first.y << "  ,   ";
-        std::cout << buildings[index]->get_critical_points().second.x << "," << buildings[index]->get_critical_points().second.y << std::endl;
-    }
 }
 
 void SkylineProblem::parse_file(const std::string& path) {
@@ -24,7 +20,7 @@ void SkylineProblem::parse_file(const std::string& path) {
     // Use a while loop together with the getline() function to read the file line by line.
     while (std::getline(file_reader, line)) {
         std::istringstream stream(line);
-        if (buildings_length == -1) {
+        if (buildings_length == 0) {
             stream >> buildings_length;
             continue;
         }
@@ -38,6 +34,19 @@ void SkylineProblem::parse_file(const std::string& path) {
 }
 
 std::vector<Point> SkylineProblem::naive_algorithm() {
+    return brute_force_algorithm(buildings);
+}
+
+std::vector<Point> SkylineProblem::recursive_algorithm() {
+    return divide_and_conquer_algorithm(buildings);
+}
+
+std::vector<Point> SkylineProblem::recursive_cutoff_algorithm(const uint32_t& cutoff){
+    recursive_algorithm_cutoff = cutoff;
+    return divide_and_conquer_cutoff_algorithm(buildings, 0);
+}
+
+std::vector<Point> SkylineProblem::brute_force_algorithm(const std::vector<std::shared_ptr<Building>> buildings){
     // Generate critical points.
     std::vector<Point> critical_points;
     for (const std::shared_ptr<Building> building: buildings) {
@@ -46,18 +55,99 @@ std::vector<Point> SkylineProblem::naive_algorithm() {
         critical_points.push_back(points.second);
     }
 
-    for (const Point point: critical_points) {
-        std::cout << point;
-    }
-
     // Sort critical points.
     const auto compare = [](const Point& a, const Point& b) { return a.x < b.x; };
     std::sort(critical_points.begin(), critical_points.end(), compare);
 
-    std::cout << std::endl;
-    for (const Point point: critical_points) {
-        std::cout << point;
+    // Naive algorithm
+    std::vector<Point> result;
+    for (Point& point: critical_points) {
+        for (const std::shared_ptr<Building> building: buildings) {
+            if (building->includes(point)) {
+                point.y = building->height;
+            }
+        }
+        if (result.empty()){
+            result.push_back(point);
+            continue;
+        }
+        // TODO: Recheck the if conditions (x).
+        if (result.back().y != point.y && result.back().x != point.x) {
+            result.push_back(point);
+        }
     }
 
-    return critical_points;
+    return result;
+}
+
+std::vector<Point> SkylineProblem::divide_and_conquer_algorithm(const std::vector<std::shared_ptr<Building>> buildings) {
+    if (buildings.size() == 1){
+        const auto critical_points = buildings.at(0)->get_critical_points();
+        return {critical_points.first, critical_points.second};
+    }
+
+    std::size_t const half_size = buildings.size() / 2;
+    std::vector<std::shared_ptr<Building>> first_half(buildings.begin(), buildings.begin() + half_size);
+    std::vector<std::shared_ptr<Building>> second_half(buildings.begin() + half_size, buildings.end());
+
+    std::vector<Point> first_half_result = divide_and_conquer_algorithm(first_half);
+    std::vector<Point> second_half_result = divide_and_conquer_algorithm(second_half);
+    
+    return merge_buildings(first_half_result, second_half_result);
+}
+
+std::vector<Point> SkylineProblem::divide_and_conquer_cutoff_algorithm(const std::vector<std::shared_ptr<Building>> buildings, const uint32_t depth) {
+    if (depth == recursive_algorithm_cutoff) {
+        return brute_force_algorithm(buildings);
+    }
+
+    if (buildings.size() == 1){
+        const auto critical_points = buildings.at(0)->get_critical_points();
+        return {critical_points.first, critical_points.second};
+    }
+
+    std::size_t const half_size = buildings.size() / 2;
+    std::vector<std::shared_ptr<Building>> first_half(buildings.begin(), buildings.begin() + half_size);
+    std::vector<std::shared_ptr<Building>> second_half(buildings.begin() + half_size, buildings.end());
+
+    std::vector<Point> first_half_result = divide_and_conquer_cutoff_algorithm(first_half, depth + 1);
+    std::vector<Point> second_half_result = divide_and_conquer_cutoff_algorithm(second_half, depth + 1);
+
+    return merge_buildings(first_half_result, second_half_result);
+}
+
+std::vector<Point> SkylineProblem::merge_buildings(
+    std::vector<Point> first_half, 
+    std::vector<Point> second_half) {
+
+    std::vector<Point> result;
+    std::size_t first_height = 0;
+    std::size_t second_height = 0;
+
+    std::size_t first_index = 0;
+    std::size_t second_index = 0;
+    while (first_index < first_half.size() && second_index < second_half.size()) {
+        Point point;
+        if (first_half[first_index].x < second_half[second_index].x) {
+            point = first_half[first_index++];
+            first_height = point.y;
+        } else {
+            point = second_half[second_index++];
+            second_height = point.y;
+        }
+        point.y = std::max(first_height, second_height);
+        if (result.empty() || result.back().y != point.y) {
+            result.push_back(point);
+        }
+    }
+
+    while (first_index < first_half.size()) {
+        result.push_back(first_half[first_index++]);
+    }
+
+    while (second_index < second_half.size()) {
+        result.push_back(second_half[second_index++]);
+    }
+
+    return result;
 }
