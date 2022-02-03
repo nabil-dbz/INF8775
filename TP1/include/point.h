@@ -10,6 +10,8 @@ class Point
             this->y = y;
         }
         
+        bool operator<(const Point& point);
+        bool operator==(const Point& point);
         friend std::ostream& operator<<(std::ostream& os, const Point& point);
         double x, y;
 };
