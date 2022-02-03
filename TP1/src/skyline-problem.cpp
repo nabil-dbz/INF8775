@@ -5,7 +5,7 @@
 #include <algorithm>
 
 SkylineProblem::SkylineProblem(const std::string& path):
-    buildings_length(0), recursive_algorithm_cutoff(0)
+    buildings_length(0), recursive_algorithm_cutoff(1)
 {
     parse_file(path);
 }
@@ -38,12 +38,13 @@ std::vector<Point> SkylineProblem::naive_algorithm() {
 }
 
 std::vector<Point> SkylineProblem::recursive_algorithm() {
-    return divide_and_conquer_algorithm(buildings);
+    recursive_algorithm_cutoff = 1;
+    return divide_and_conquer_cutoff_algorithm(buildings);
 }
 
 std::vector<Point> SkylineProblem::recursive_cutoff_algorithm(const uint32_t& cutoff){
     recursive_algorithm_cutoff = cutoff;
-    return divide_and_conquer_cutoff_algorithm(buildings, 0);
+    return divide_and_conquer_cutoff_algorithm(buildings);
 }
 
 std::vector<Point> SkylineProblem::brute_force_algorithm(const std::vector<std::shared_ptr<Building>> buildings){
@@ -80,38 +81,16 @@ std::vector<Point> SkylineProblem::brute_force_algorithm(const std::vector<std::
     return result;
 }
 
-std::vector<Point> SkylineProblem::divide_and_conquer_algorithm(const std::vector<std::shared_ptr<Building>> buildings) {
-    if (buildings.size() == 1){
-        const auto critical_points = buildings.at(0)->get_critical_points();
-        return {critical_points.first, critical_points.second};
-    }
-
-    std::size_t const half_size = buildings.size() / 2;
-    std::vector<std::shared_ptr<Building>> first_half(buildings.begin(), buildings.begin() + half_size);
-    std::vector<std::shared_ptr<Building>> second_half(buildings.begin() + half_size, buildings.end());
-
-    std::vector<Point> first_half_result = divide_and_conquer_algorithm(first_half);
-    std::vector<Point> second_half_result = divide_and_conquer_algorithm(second_half);
-    
-    return merge_buildings(first_half_result, second_half_result);
-}
-
-std::vector<Point> SkylineProblem::divide_and_conquer_cutoff_algorithm(const std::vector<std::shared_ptr<Building>> buildings, const uint32_t depth) {
-    if (depth == recursive_algorithm_cutoff) {
+std::vector<Point> SkylineProblem::divide_and_conquer_cutoff_algorithm(const std::vector<std::shared_ptr<Building>> buildings) {
+    if (buildings.size() <= recursive_algorithm_cutoff)
         return brute_force_algorithm(buildings);
-    }
-
-    if (buildings.size() == 1){
-        const auto critical_points = buildings.at(0)->get_critical_points();
-        return {critical_points.first, critical_points.second};
-    }
 
     std::size_t const half_size = buildings.size() / 2;
     std::vector<std::shared_ptr<Building>> first_half(buildings.begin(), buildings.begin() + half_size);
     std::vector<std::shared_ptr<Building>> second_half(buildings.begin() + half_size, buildings.end());
 
-    std::vector<Point> first_half_result = divide_and_conquer_cutoff_algorithm(first_half, depth + 1);
-    std::vector<Point> second_half_result = divide_and_conquer_cutoff_algorithm(second_half, depth + 1);
+    std::vector<Point> first_half_result = divide_and_conquer_cutoff_algorithm(first_half);
+    std::vector<Point> second_half_result = divide_and_conquer_cutoff_algorithm(second_half);
 
     return merge_buildings(first_half_result, second_half_result);
 }
@@ -128,7 +107,14 @@ std::vector<Point> SkylineProblem::merge_buildings(
     std::size_t second_index = 0;
     while (first_index < first_half.size() && second_index < second_half.size()) {
         Point point;
-        if (first_half[first_index].x < second_half[second_index].x) {
+        if (first_half[first_index] == second_half[second_index]) {
+            result.push_back(first_half[first_index]);
+            first_height = first_half[first_index++].y;
+            second_height = first_half[second_index++].y;
+            continue;
+        }
+
+        if (first_half[first_index] < second_half[second_index]) {
             point = first_half[first_index++];
             first_height = point.y;
         } else {
@@ -150,4 +136,10 @@ std::vector<Point> SkylineProblem::merge_buildings(
     }
 
     return result;
+}
+
+void SkylineProblem::print_results(const std::vector<Point>& results) {
+    for (const Point point: results) {
+        std::cout << point << std::endl;
+    }
 }
