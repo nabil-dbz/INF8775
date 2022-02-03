@@ -1,0 +1,155 @@
+#include <stdint.h>
+#include <list>
+#include <algorithm>
+#include <string>
+#include <vector>
+#include <memory>
+
+class Point
+{
+    public:
+        Point(): x(0), y(0) {}
+
+        Point(uint32_t x, uint32_t y){
+            this->x = x;
+            this->y = y;
+        }
+        
+        int x, y;
+};
+
+class Building {
+  public:
+    Building(uint32_t left, uint32_t right, uint32_t height) {
+      this->left = left;
+      this->right = right;
+      this->height = height;
+    }
+    std::pair<Point, Point> get_critical_points(){
+        return std::make_pair(Point(left, height), Point(right, 0));
+    }
+
+    bool includes(Point point){
+        return point.x >= left && point.x < right && point.y < height;
+    }
+    uint32_t left;
+    uint32_t right;
+    uint32_t height;
+};
+
+
+std::vector<Point> brute_force_algorithm(const std::vector<std::shared_ptr<Building>> buildings){
+    // Generate critical points.
+    std::vector<Point> critical_points;
+    for (const std::shared_ptr<Building> building: buildings) {
+        const auto points = building->get_critical_points();
+        critical_points.push_back(points.first);
+        critical_points.push_back(points.second);
+    }
+
+    // Sort critical points.
+    const auto compare = [](const Point& a, const Point& b) { return a.x < b.x; };
+    std::sort(critical_points.begin(), critical_points.end(), compare);
+
+    // Naive algorithm
+    std::vector<Point> result;
+    for (Point& point: critical_points) {
+        for (const std::shared_ptr<Building> building: buildings) {
+            if (building->includes(point)) {
+                point.y = building->height;
+            }
+        }
+        if (result.empty()){
+            result.push_back(point);
+            continue;
+        }
+        // TODO: Recheck the if conditions (x).
+        if (result.back().y != point.y && result.back().x != point.x) {
+            result.push_back(point);
+        }
+    }
+
+    return result;
+}
+uint32_t recursive_algorithm_cutoff = 1;
+std::vector<Point> merge_buildings(
+    std::vector<Point> first_half, 
+    std::vector<Point> second_half);
+std::vector<Point> divide_and_conquer_cutoff_algorithm(const std::vector<std::shared_ptr<Building>> buildings) {
+    if (buildings.size() <= recursive_algorithm_cutoff)
+        return brute_force_algorithm(buildings);
+
+    std::size_t const half_size = buildings.size() / 2;
+    std::vector<std::shared_ptr<Building>> first_half(buildings.begin(), buildings.begin() + half_size);
+    std::vector<std::shared_ptr<Building>> second_half(buildings.begin() + half_size, buildings.end());
+
+    std::vector<Point> first_half_result = divide_and_conquer_cutoff_algorithm(first_half);
+    std::vector<Point> second_half_result = divide_and_conquer_cutoff_algorithm(second_half);
+
+    return merge_buildings(first_half_result, second_half_result);
+}
+
+std::vector<Point> merge_buildings(
+    std::vector<Point> first_half, 
+    std::vector<Point> second_half) {
+
+    std::vector<Point> result;
+    std::size_t first_height = 0;
+    std::size_t second_height = 0;
+
+    std::size_t first_index = 0;
+    std::size_t second_index = 0;
+    while (first_index < first_half.size() && second_index < second_half.size()) {
+        Point point;
+       if (first_half[first_index].x == second_half[second_index].x && first_half[first_index].y == second_half[second_index].y){
+           point = first_half[first_index];
+           first_height = point.y;
+           second_height = point.y;
+           first_index++;
+           second_index++;
+           result.push_back(point);
+           continue;
+            
+       }
+        const bool condition = first_half[first_index].x == second_half[second_index].x ?  first_half[first_index].y > second_half[second_index].y : first_half[first_index].x < second_half[second_index].x;
+        if (condition) {
+            point = first_half[first_index++];
+           first_height = point.y;
+        }    else {
+            point = second_half[second_index++];
+            second_height = point.y;
+        }
+        
+        
+        point.y = std::max(first_height, second_height);
+        if (result.empty() || result.back().y != point.y) {
+            result.push_back(point);
+        }
+    }
+
+    while (first_index < first_half.size()) {
+        result.push_back(first_half[first_index++]);
+    }
+
+    while (second_index < second_half.size()) {
+        result.push_back(second_half[second_index++]);
+    }
+
+    return result;
+}
+
+class Solution {
+public:
+    vector<vector<int>> getSkyline(vector<vector<int>>& buildings) {
+        std::vector<std::shared_ptr<Building>>  buildings_;
+        for (const auto& building: buildings){
+            buildings_.push_back(std::make_shared<Building>(building[0], building[1], building[2]));
+        }
+        const auto points = divide_and_conquer_cutoff_algorithm(buildings_);
+        vector<vector<int>> res;
+        for (const auto& p: points){
+            res.push_back({p.x, p.y});
+        }
+        return res;
+    }
+};
