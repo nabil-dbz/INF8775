@@ -1,0 +1,23 @@
+#! /usr/bin/env bash
+
+mkdir -p data
+cd ./data/ || exit 1
+for n in {"1000","5000","10000","50000","100000","500000"}
+do
+    python3 ../inst_gen.py -s "$n" -n 5
+done
+
+cd ../
+echo "####################### Starting Execution #######################" > results.txt
+for algo in {"brute","recursive","cutoff"}
+do
+    echo "################### Algorithm: $algo ###################" >> results.txt
+    for n in {"1000","5000","10000","50000","100000","500000"}
+    do
+        for index in {0..4} 
+        do
+            { echo "######## Processing file: N${n}_${index} ########"; ./assignment -e "./data/N${n}_${index}" -a "$algo" -t; printf "\n"; } >> results.txt
+        done
+    done
+    printf "\n\n" >> results.txt
+done
