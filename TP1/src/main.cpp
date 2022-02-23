@@ -33,24 +33,13 @@ int main(int argc, char *argv[])
     const std::clock_t start_time = std::clock();
     switch (algo_type) {
         case NAIVE:
-            std::cout << "Executing the naive algorithm" << std::endl;
             results = skyline_problem->naive_algorithm();
             break;
         case RECURSIVE:
-            std::cout << "Executing the recursive algorithm" << std::endl;
             results = skyline_problem->recursive_algorithm();
             break;
         case RECURSIVE_CUTOFF:
-            if (argc != 6) {
-                std::cout << "Please make sure to provide the cutoff of the algorithm!" << std::endl;
-                return 1;
-            }
-            {
-                int recursive_algorithm_cutoff = 1;
-                std::istringstream(argv[5]) >> recursive_algorithm_cutoff;
-                std::cout << "Executing the recursive algorithm with cutoff " << recursive_algorithm_cutoff << std::endl;
-                results = skyline_problem->recursive_cutoff_algorithm(recursive_algorithm_cutoff);
-            }
+            results = skyline_problem->recursive_cutoff_algorithm(/*recursive_algorithm_cutoff=*/8);
             break;
         default:
             std::cout << "Please make sure to provide the right type of algorithm!" << std::endl;
@@ -62,7 +51,7 @@ int main(int argc, char *argv[])
         skyline_problem->print_results(results);
 
     if (is_execution_time_required)
-        std::cout << "Execution time is: " << (float)(end_time - start_time) / CLOCKS_PER_SEC << "s" << std::endl;
+        std::cout << (float)(end_time - start_time) / (CLOCKS_PER_SEC / 1000) << std::endl;
 
     return 0;
 }
