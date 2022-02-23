@@ -72,7 +72,7 @@ std::vector<Point> SkylineProblem::brute_force_algorithm(const std::vector<std::
             result.push_back(point);
             continue;
         }
-        // TODO: Recheck the if conditions (x).
+        
         if (result.back().y != point.y && result.back().x != point.x) {
             result.push_back(point);
         }
