@@ -5,9 +5,11 @@
 #include <algorithm>
 #include <deque>
 
+typedef std::vector<Cube*> Cubes;
+
 const int NO_LAST = -1;
 
-HighestTowerProblem::HighestTowerProblem(const std::string& path) {
+HighestTowerProblem::HighestTowerProblem(const std::string& path): distribution(7,10) {
     parse_file(path);
 }
 
@@ -30,8 +32,8 @@ void HighestTowerProblem::parse_file(const std::string& path) {
     file_reader.close();
 }
 
-std::vector<Cube*> HighestTowerProblem::greedy_algorithm() {
-    std::vector<Cube*> results;
+Solution HighestTowerProblem::greedy_algorithm() {
+    Cubes results;
 
     // Sort cubes accordingly.
     // TODO: find a way to generalize this by passing a comparing function as an argument.
@@ -40,21 +42,24 @@ std::vector<Cube*> HighestTowerProblem::greedy_algorithm() {
     };
     std::sort(cubes.begin(), cubes.end(), compare);
 
+    uint32_t height = 0;
     for(const std::shared_ptr<Cube>& cube: cubes){
         if(results.empty()){
             results.push_back(cube.get());
+            height += cube->height;
             continue;
         }
 
         if (results.back()->can_hold(cube.get())) {
             results.push_back(cube.get());
+            height += cube->height;
         }
     }
 
-    return results;
+    return { results, height };
 }
 
-std::vector<Cube*> HighestTowerProblem::dynamic_programming_algorithm() {    
+Solution HighestTowerProblem::dynamic_programming_algorithm() {    
     // Sort cubes accordingly.
     const auto compare = [](const std::shared_ptr<Cube>& cube_a, const std::shared_ptr<Cube>& cube_b) { 
         return cube_a->get_base_area() > cube_b->get_base_area(); 
@@ -91,25 +96,117 @@ std::vector<Cube*> HighestTowerProblem::dynamic_programming_algorithm() {
         }
     }
 
-    return get_path_solution(top_cube_index, max_predecessor_index, predecessors);
+    return { get_path_solution(top_cube_index, max_predecessor_index, predecessors), max_height_result };
 }
 
-std::vector<Cube*> HighestTowerProblem::taboo_algorithm() {
-    std::vector<Cube*> results;
-    // TODO: Implement this!
-    for (auto cube: cubes){
-        results.push_back(cube.get());
+Solution HighestTowerProblem::tabu_algorithm() {
+    // Get a greedy solution!
+    Solution current_solution = greedy_algorithm();
+
+    // for the values in the dict : 
+    // -1 means that the cube is in the current solution
+    //  0 means that it is a candidate cube
+    //  ELSE (greater than 0) means it is a tabu cube and the value is the expiration
+
+    std::unordered_map<Cube*, int8_t> candidates; 
+
+    for(const auto& cube: cubes){
+        candidates.insert({cube.get(), 0});
     }
-    return results;
+
+    for(const auto& cube: current_solution.cubes){
+        candidates[cube] = -1;
+    }
+
+    uint8_t counter = 0;
+    const uint8_t STALL_MAX_ITERATIONS = 100;
+    
+    while (counter <  STALL_MAX_ITERATIONS) {
+        const auto next_neighbor_solution = get_best_neighbor_solution(current_solution.cubes, candidates);  
+        if (next_neighbor_solution.score > current_solution.score) {
+            current_solution = next_neighbor_solution;
+            counter = 0;
+        }
+        counter += 1;
+    }
+    
+    return current_solution;
 }
 
-void HighestTowerProblem::print_results(const std::vector<Cube*>& results) {
+Solution HighestTowerProblem::get_best_neighbor_solution(const Cubes& current_solution, std::unordered_map<Cube*, int8_t>& candidates) {
+
+    Solution best_neighbor_solution = {{}, 0};
+    Cubes best_neighbor_tabu_list;
+
+    for (auto candidate_element: candidates) {
+        if (candidate_element.second != 0) continue; // not a candidate
+
+        Cube* candidate_cube = candidate_element.first;
+        
+        Cubes temp_tabu_list;
+
+        Solution neighbor_solution = get_candidate_next_neighbor(candidate_cube, current_solution, temp_tabu_list);
+
+        if (neighbor_solution.score > best_neighbor_solution.score) {
+            best_neighbor_solution = neighbor_solution;
+            best_neighbor_tabu_list = temp_tabu_list;
+        }
+    }
+
+    // Update old tabu elements expiration date
+    for (auto& candidate_element : candidates) {
+        if (candidate_element.second > 0) {
+            candidate_element.second--;
+        }
+    }
+
+    // Add elements with new expiration date to tabu list
+    for (Cube* tabu_element: best_neighbor_tabu_list) {
+        candidates[tabu_element] = distribution(generator);
+    }
+    
+    // Update current solution elements
+    for(const auto& cube: best_neighbor_solution.cubes){
+        candidates[cube] = -1;
+    }
+
+    return best_neighbor_solution;
+}
+
+Solution HighestTowerProblem::get_candidate_next_neighbor(Cube* candidate_cube, const Cubes& current_solution, Cubes& temp_tabu_list){        
+    Cubes neighbor_solution;
+    uint32_t neighbor_score = 0;
+
+    size_t i = 0;
+    while (current_solution[i]->can_hold(candidate_cube)) {
+        neighbor_solution.push_back(current_solution[i]);
+        neighbor_score += current_solution[i]->height;
+        i++;
+    }
+
+    neighbor_solution.push_back(candidate_cube);
+    neighbor_score += candidate_cube->height;
+    
+    for(; i < current_solution.size(); i++) {
+        if (neighbor_solution.back()->can_hold(current_solution[i])) {
+            neighbor_solution.push_back(current_solution[i]);
+            neighbor_score += current_solution[i]->height;
+        }
+        else {
+            temp_tabu_list.push_back(current_solution[i]);
+        }
+    }
+
+    return {neighbor_solution, neighbor_score};
+}
+
+void HighestTowerProblem::print_results(const Cubes& results) {
     for (const Cube* cube: results) {
         std::cout << *cube << std::endl;
     }
 }
 
-std::vector<Cube*> HighestTowerProblem::get_path_solution(int first_cube_index, int first_predecessor_index, const std::vector<int>& predecessors) {
+Cubes HighestTowerProblem::get_path_solution(int first_cube_index, int first_predecessor_index, const std::vector<int>& predecessors) {
     std::deque<Cube*> elements;
     elements.push_front(cubes[first_cube_index].get());
 
@@ -118,106 +215,5 @@ std::vector<Cube*> HighestTowerProblem::get_path_solution(int first_cube_index, 
         first_predecessor_index = predecessors[first_predecessor_index];
     }
 
-    return std::vector<Cube*>({elements.begin(), elements.end()});
+    return Cubes({elements.begin(), elements.end()});
 }
-
-// std::vector<Point> HighestTowerProblem::recursive_algorithm() {
-//     recursive_algorithm_cutoff = 1;
-//     return divide_and_conquer_cutoff_algorithm(buildings);
-// }
-
-// std::vector<Point> HighestTowerProblem::recursive_cutoff_algorithm(const uint32_t& cutoff){
-//     recursive_algorithm_cutoff = cutoff;
-//     return divide_and_conquer_cutoff_algorithm(buildings);
-// }
-
-// std::vector<Point> HighestTowerProblem::brute_force_algorithm(const std::vector<std::shared_ptr<Building>> buildings){
-//     // Generate critical points.
-//     std::vector<Point> critical_points;
-//     for (const std::shared_ptr<Building> building: buildings) {
-//         const auto points = building->get_critical_points();
-//         critical_points.push_back(points.first);
-//         critical_points.push_back(points.second);
-//     }
-
-//     // Sort critical points.
-//     const auto compare = [](const Point& a, const Point& b) { return a.x < b.x; };
-//     std::sort(critical_points.begin(), critical_points.end(), compare);
-
-//     // Naive algorithm
-//     std::vector<Point> result;
-//     for (Point& point: critical_points) {
-//         for (const std::shared_ptr<Building> building: buildings) {
-//             if (building->includes(point)) {
-//                 point.y = building->height;
-//             }
-//         }
-//         if (result.empty()){
-//             result.push_back(point);
-//             continue;
-//         }
-        
-//         if (result.back().y != point.y && result.back().x != point.x) {
-//             result.push_back(point);
-//         }
-//     }
-
-//     return result;
-// }
-
-// std::vector<Point> HighestTowerProblem::divide_and_conquer_cutoff_algorithm(const std::vector<std::shared_ptr<Building>> buildings) {
-//     if (buildings.size() <= recursive_algorithm_cutoff)
-//         return brute_force_algorithm(buildings);
-
-//     std::size_t const half_size = buildings.size() / 2;
-//     std::vector<std::shared_ptr<Building>> first_half(buildings.begin(), buildings.begin() + half_size);
-//     std::vector<std::shared_ptr<Building>> second_half(buildings.begin() + half_size, buildings.end());
-
-//     std::vector<Point> first_half_result = divide_and_conquer_cutoff_algorithm(first_half);
-//     std::vector<Point> second_half_result = divide_and_conquer_cutoff_algorithm(second_half);
-
-//     return merge_buildings(first_half_result, second_half_result);
-// }
-
-// std::vector<Point> HighestTowerProblem::merge_buildings(
-//     std::vector<Point> first_half, 
-//     std::vector<Point> second_half) {
-
-//     std::vector<Point> result;
-//     std::size_t first_height = 0;
-//     std::size_t second_height = 0;
-
-//     std::size_t first_index = 0;
-//     std::size_t second_index = 0;
-//     while (first_index < first_half.size() && second_index < second_half.size()) {
-//         Point point;
-//         if (first_half[first_index] == second_half[second_index]) {
-//             result.push_back(first_half[first_index]);
-//             first_height = first_half[first_index++].y;
-//             second_height = first_half[second_index++].y;
-//             continue;
-//         }
-
-//         if (first_half[first_index] < second_half[second_index]) {
-//             point = first_half[first_index++];
-//             first_height = point.y;
-//         } else {
-//             point = second_half[second_index++];
-//             second_height = point.y;
-//         }
-//         point.y = std::max(first_height, second_height);
-//         if (result.empty() || result.back().y != point.y) {
-//             result.push_back(point);
-//         }
-//     }
-
-//     while (first_index < first_half.size()) {
-//         result.push_back(first_half[first_index++]);
-//     }
-
-//     while (second_index < second_half.size()) {
-//         result.push_back(second_half[second_index++]);
-//     }
-
-//     return result;
-// }

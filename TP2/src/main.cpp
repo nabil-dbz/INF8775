@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
     AlgorithmType algo_type = static_cast<AlgorithmType>(type);
 
     std::unique_ptr<HighestTowerProblem> highest_tower_problem = std::make_unique<HighestTowerProblem>(file_path);
-    std::vector<Cube*> results;
+    Solution results;
 
     const std::clock_t start_time = std::clock();
     switch (algo_type) {
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
             results = highest_tower_problem->dynamic_programming_algorithm();
             break;
         case TABOO:
-            results = highest_tower_problem->taboo_algorithm();
+            results = highest_tower_problem->tabu_algorithm();
             break;
         default:
             std::cout << "Please make sure to provide the right type of algorithm!" << std::endl;
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     const std::clock_t end_time = std::clock();
 
     if (should_print_results)
-        HighestTowerProblem::print_results(results);
+        HighestTowerProblem::print_results(results.cubes);
 
     if (is_execution_time_required)
         std::cout << (float)(end_time - start_time) / (CLOCKS_PER_SEC / 1000) << std::endl;
