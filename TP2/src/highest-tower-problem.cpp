@@ -34,8 +34,7 @@ void HighestTowerProblem::parse_file(const std::string& path) {
 Solution HighestTowerProblem::greedy_algorithm() {
     Cubes results;
 
-    // Sort cubes accordingly.
-    // TODO: find a way to generalize this by passing a comparing function as an argument.
+    // Sort cubes accordingly based on area.
     const auto compare = [](const std::shared_ptr<Cube>& cube_a, const std::shared_ptr<Cube>& cube_b) { 
         return cube_a->get_base_area() > cube_b->get_base_area(); 
     };
@@ -136,7 +135,7 @@ Solution HighestTowerProblem::tabu_algorithm() {
 Solution HighestTowerProblem::get_best_neighbor_solution(const Solution& current_solution, std::unordered_map<Cube*, int8_t>& candidates) {
 
     uint32_t best_neighbor_score = 0;
-    Cube* best_candidate;
+    Cube* best_candidate = nullptr;
 
     for (auto candidate_element: candidates) {
         if (candidate_element.second != 0) continue; // not a candidate
@@ -151,10 +150,18 @@ Solution HighestTowerProblem::get_best_neighbor_solution(const Solution& current
         }
     }
     
+    
     Cubes best_neighbor_tabu_list;
-    auto best_neighbor_cubes = get_candidate_next_neighbor_cubes(best_candidate, current_solution.cubes, best_neighbor_tabu_list);
-    Solution best_neighbor_solution = {.cubes = best_neighbor_cubes, .score = best_neighbor_score};
+    Solution best_neighbor_solution;
 
+    if(best_candidate != nullptr){
+        auto best_neighbor_cubes = get_candidate_next_neighbor_cubes(best_candidate, current_solution.cubes, best_neighbor_tabu_list);
+        best_neighbor_solution = {.cubes = best_neighbor_cubes, .score = best_neighbor_score};
+    }else{
+        // When there are no candidates, we return the same solution, but update tabu elements.
+        best_neighbor_solution = current_solution;
+    }
+    
     // Update old tabu elements expiration date
     for (auto& candidate_element : candidates) {
         if (candidate_element.second > 0) {
@@ -167,7 +174,7 @@ Solution HighestTowerProblem::get_best_neighbor_solution(const Solution& current
         candidates[tabu_element] = distribution(generator);
     }
     
-    // Update current solution elements
+    // Update current solution elements, only best candidate needs to be changed
     candidates[best_candidate] = -1;
     
 

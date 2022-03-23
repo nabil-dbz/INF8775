@@ -37,7 +37,7 @@ class HighestTowerProblem {
     
     std::vector<std::shared_ptr<Cube>> cubes;
     std::default_random_engine generator;
-    std::uniform_int_distribution<int> distribution;
+    std::uniform_int_distribution<uint8_t> distribution;
 };
 
 #endif
