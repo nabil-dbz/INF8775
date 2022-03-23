@@ -133,6 +133,82 @@ Solution HighestTowerProblem::tabu_algorithm() {
     return current_solution;
 }
 
+Solution HighestTowerProblem::tabu_algorithm_v2() {
+    // Get a greedy solution!
+    Solution current_solution = greedy_algorithm();
+
+    // for the values in the dict : 
+    // -1 means that the cube is in the current solution
+    //  0 means that it is a candidate cube
+    //  ELSE (greater than 0) means it is a tabu cube and the value is the expiration
+
+    std::unordered_map<Cube*, int8_t> tabu_elements;
+    std::unordered_set<Cube*> candidates;
+
+    for(const auto& cube: cubes){
+        candidates.insert(cube.get());
+    }
+
+    for(const auto& cube: current_solution.cubes){
+        candidates.erase(cube);
+    }
+
+
+    uint8_t counter = 0;
+    const uint8_t STALL_MAX_ITERATIONS = 100;
+    
+    while (counter <  STALL_MAX_ITERATIONS) {
+        const auto next_neighbor_solution = get_best_neighbor_solution_v2(current_solution.cubes, tabu_elements, candidates);  
+        if (next_neighbor_solution.score > current_solution.score) {
+            current_solution = next_neighbor_solution;
+            counter = 0;
+        }
+        counter += 1;
+    }
+    
+    return current_solution;
+}
+
+Solution HighestTowerProblem::get_best_neighbor_solution_v2(const std::vector<Cube*>& current_solution, std::unordered_map<Cube*, int8_t>& tabu_elements, std::unordered_set<Cube*>& candidates) {
+
+    Solution best_neighbor_solution = {{}, 0};
+    Cubes best_neighbor_tabu_list;
+    Cube* best_candidate;
+
+    for (auto candidate_cube: candidates) {
+
+        Cubes temp_tabu_list;
+
+        Solution neighbor_solution = get_candidate_next_neighbor(candidate_cube, current_solution, temp_tabu_list);
+
+        if (neighbor_solution.score > best_neighbor_solution.score) {
+            best_neighbor_solution = neighbor_solution;
+            best_neighbor_tabu_list = temp_tabu_list;
+            best_candidate = candidate_cube;
+        }
+    }
+    
+    candidates.erase(best_candidate);
+
+    // Add elements with new expiration date to tabu list
+    for (Cube* tabu_cube: best_neighbor_tabu_list) {
+        tabu_elements.insert_or_assign(tabu_cube, 1 + distribution(generator));
+    }
+    
+    // Update old tabu elements expiration date
+    for (auto& tabu_element : tabu_elements) {
+        if(tabu_element.second - 1 == 0){
+            tabu_elements.erase(tabu_element.first);
+            candidates.insert(tabu_element.first);
+        }
+        else{
+            tabu_element.second--;
+        }
+    }
+
+    return best_neighbor_solution;
+}
+
 Solution HighestTowerProblem::get_best_neighbor_solution(const Cubes& current_solution, std::unordered_map<Cube*, int8_t>& candidates) {
 
     Solution best_neighbor_solution = {{}, 0};
