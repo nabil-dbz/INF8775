@@ -150,13 +150,16 @@ Solution HighestTowerProblem::get_best_neighbor_solution(const Solution& current
         }
     }
     
-    
     Cubes best_neighbor_tabu_list;
     Solution best_neighbor_solution;
 
     if(best_candidate != nullptr){
         auto best_neighbor_cubes = get_candidate_next_neighbor_cubes(best_candidate, current_solution.cubes, best_neighbor_tabu_list);
         best_neighbor_solution = {.cubes = best_neighbor_cubes, .score = best_neighbor_score};
+
+        // Update current solution elements, only best candidate needs to be changed        
+        candidates[best_candidate] = -1;
+
     }else{
         // When there are no candidates, we return the same solution, but update tabu elements.
         best_neighbor_solution = current_solution;
@@ -173,10 +176,6 @@ Solution HighestTowerProblem::get_best_neighbor_solution(const Solution& current
     for (Cube* tabu_element: best_neighbor_tabu_list) {
         candidates[tabu_element] = distribution(generator);
     }
-    
-    // Update current solution elements, only best candidate needs to be changed
-    candidates[best_candidate] = -1;
-    
 
     return best_neighbor_solution;
 }
