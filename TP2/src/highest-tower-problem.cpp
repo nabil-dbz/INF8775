@@ -168,9 +168,8 @@ Solution HighestTowerProblem::get_best_neighbor_solution(const Solution& current
     }
     
     // Update current solution elements
-    for(const auto& cube: best_neighbor_solution.cubes){
-        candidates[cube] = -1;
-    }
+    candidates[best_candidate] = -1;
+    
 
     return best_neighbor_solution;
 }
