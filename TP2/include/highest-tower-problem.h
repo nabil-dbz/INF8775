@@ -9,8 +9,10 @@
 #include <random>
 #include "cube.h"
 
+typedef std::vector<Cube*> Cubes;
+
 struct Solution {  
-    std::vector<Cube*> cubes;
+    Cubes cubes;
     uint32_t score;
 };
 
@@ -24,17 +26,19 @@ class HighestTowerProblem {
     Solution tabu_algorithm();
     Solution tabu_algorithm_v2();
 
-    static void print_results(const std::vector<Cube*>& results);
+    static void print_results(const Cubes& results);
 
   private:
-    Solution get_best_neighbor_solution(const std::vector<Cube*>& current_solution, std::unordered_map<Cube*, int8_t>& candidates);
-    Solution get_candidate_next_neighbor(Cube* candidate_cube, const std::vector<Cube*>& current_solution, std::vector<Cube*>& temp_tabu_list);
+    Solution get_best_neighbor_solution(const Solution& current_solution, std::unordered_map<Cube*, int8_t>& candidates);
+    uint32_t get_candidate_next_neighbor_score(Cube* candidate_cube, const Solution& current_solution);
+    Cubes get_candidate_next_neighbor_cubes(Cube* candidate_cube, const Cubes& current_solution, Cubes& temp_tabu_list);
     
-    Solution get_best_neighbor_solution_v2(const std::vector<Cube*>& current_solution, std::unordered_map<Cube*, int8_t>& tabu_elements, std::unordered_set<Cube*>& candidates);
+    
+    Solution get_best_neighbor_solution_v2(const Solution& current_solution, std::unordered_map<Cube*, int8_t>& tabu_elements, std::unordered_set<Cube*>& candidates);
 
     
     void parse_file(const std::string& path);
-    std::vector<Cube*> get_path_solution(int first_cube_index, int first_predecessor_index, const std::vector<int>& predecessors);
+    Cubes get_path_solution(int first_cube_index, int first_predecessor_index, const std::vector<int>& predecessors);
     
     std::vector<std::shared_ptr<Cube>> cubes;
     std::default_random_engine generator;
