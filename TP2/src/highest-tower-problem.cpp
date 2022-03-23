@@ -198,8 +198,8 @@ Solution HighestTowerProblem::get_best_neighbor_solution_v2(const std::vector<Cu
     // Update old tabu elements expiration date
     for (auto& tabu_element : tabu_elements) {
         if(tabu_element.second - 1 == 0){
-            tabu_elements.erase(tabu_element.first);
             candidates.insert(tabu_element.first);
+            tabu_elements.erase(tabu_element.first);
         }
         else{
             tabu_element.second--;
