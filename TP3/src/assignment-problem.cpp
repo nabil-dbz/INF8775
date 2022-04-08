@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <deque>
 #include <vector>
+#include <random>
 
 const int NO_LAST = -1;
 
@@ -55,7 +56,7 @@ void AssignmentProblem::parse_file(const std::string& path) {
 
     // Init graph
     for(size_t i=0; i<n_atoms; i++){
-        graph.push_back(std::vector<Edge>());
+        graph.push_back(std::vector<std::shared_ptr<Edge>>());
     }
 
     // Parse graph
@@ -66,145 +67,123 @@ void AssignmentProblem::parse_file(const std::string& path) {
         size_t start = std::stoi(s);
         size_t end = std::stoi(e);
 
-        Edge edge(start, end);
+        const auto edge = std::make_shared<Edge>(start, end);
         edges.push_back(edge);
         graph[start].push_back(edge);
-        graph[end].push_back(Edge(end, start));
+        graph[end].push_back(edge);
     }
 
     // Close the file.
     file_reader.close();
 }
 
-// Solution AssignmentProblem::tabu_algorithm() {
-//     // Get a greedy solution!
-//     Solution current_solution = greedy_algorithm();
-//     Solution best_solution = current_solution;
+Solution AssignmentProblem::get_random_solution(){
+    Solution random_solution;
 
-//     // for the values in the dict : 
-//     // -1 means that the cube is in the current solution
-//     //  0 means that it is a candidate cube
-//     //  ELSE (greater than 0) means it is a tabu cube and the value is the expiration
+    std::random_device rd;
+    std::mt19937 g(rd());
+ 
 
-//     std::unordered_map<Cube*, int8_t> candidates; 
+    for(size_t i = 0; i < assignments_contraint.size(); i++){
+        const uint32_t constraint = assignments_contraint[i]; // combien de type i
+        for(size_t j = 0; j < constraint; j++){
+            random_solution.assignments.push_back(i);
+        }
+    }
 
-//     for(const auto& cube: cubes){
-//         candidates.insert({cube.get(), 0});
-//     }
+    std::shuffle(random_solution.assignments.begin(), random_solution.assignments.end(), g);
 
-//     for(const auto& cube: current_solution.cubes){
-//         candidates[cube] = -1;
-//     }
+    random_solution.total_energy = get_total_energy(random_solution.assignments);
 
-//     uint8_t counter = 0;
-//     const uint8_t STALL_MAX_ITERATIONS = 100;
+    return random_solution;
+}
+
+int AssignmentProblem::get_total_energy(const std::vector<uint8_t>& assignments){
+    int total_energy = 0;
+
+    for(const auto& edge: edges){
+        edge->weight = H[assignments[edge->start]][assignments[edge->end]];
+        total_energy += edge->weight;
+    }
+    return total_energy;
+}
+
+Solution AssignmentProblem::tabu_algorithm(bool should_print_results) {
+    // Get a greedy solution!
+    Solution current_solution = get_random_solution();
+    Solution best_solution = current_solution;
+
+    while (true) {
+        current_solution = get_best_neighbor_solution(current_solution);  
+        if (current_solution.total_energy < best_solution.total_energy && should_print_results) {
+            best_solution = current_solution;
+            print_results(best_solution);
+        }
+    }
     
-//     while (counter <  STALL_MAX_ITERATIONS) {
-//         current_solution = get_best_neighbor_solution(current_solution, candidates);  
-//         if (current_solution.score > best_solution.score) {
-//             best_solution = current_solution;
-//             counter = 0;
-//         }
-//         counter += 1;
-//     }
+    return best_solution;
+}
+
+Solution AssignmentProblem::get_best_neighbor_solution(Solution& current_solution) {
+    auto assignments = current_solution.assignments;
+    int best_diff = INT32_MAX;
+    std::pair<size_t, size_t> best_pair = {};
     
-//     return best_solution;
-// }
+    for(size_t i = 0; i < assignments.size(); i++) {
+        for(size_t j = i+1; j < assignments.size(); j++){
+            if(assignments[i] == assignments[j]) continue;
 
-// Solution AssignmentProblem::get_best_neighbor_solution(const Solution& current_solution, std::unordered_map<Cube*, int8_t>& candidates) {
+            int diff = 0;
 
-//     uint32_t best_neighbor_score = 0;
-//     Cube* best_candidate = nullptr;
+            for(const auto& edge: graph[i]){
+                const auto other_node = edge->start==i ? edge->end : edge->start;
+                if(other_node == j){
+                    continue;
+                }
+                diff += H[assignments[other_node]][assignments[j]] - edge->weight;
+            }
 
-//     for (auto candidate_element: candidates) {
-//         if (candidate_element.second != 0) continue; // not a candidate
+            for(const auto& edge: graph[j]){
+                const auto other_node = edge->start==i ? edge->end : edge->start;
+                if(other_node == i){
+                    continue;
+                }
+                diff += H[assignments[other_node]][assignments[i]] - edge->weight;
+            }
 
-//         Cube* candidate_cube = candidate_element.first;
-        
-//         uint32_t neighbor_score = get_candidate_next_neighbor_score(candidate_cube, current_solution);
 
-//         if (neighbor_score > best_neighbor_score) {
-//             best_neighbor_score = neighbor_score;
-//             best_candidate = candidate_cube;
-//         }
-//     }
-    
-//     Cubes best_neighbor_tabu_list;
-//     Solution best_neighbor_solution;
+            if(diff < best_diff){
+                best_pair = {i, j};
+                best_diff = diff;
+            }
+        }
+    }
 
-//     if(best_candidate != nullptr){
-//         auto best_neighbor_cubes = get_candidate_next_neighbor_cubes(best_candidate, current_solution.cubes, best_neighbor_tabu_list);
-//         best_neighbor_solution = {.cubes = best_neighbor_cubes, .score = best_neighbor_score};
+    const auto i = best_pair.first;
+    const auto j = best_pair.second;
 
-//         // Update current solution elements, only best candidate needs to be changed        
-//         candidates[best_candidate] = -1;
+    for(const auto& edge: graph[i]){
+        const auto other_node = edge->start==i ? edge->end : edge->start;
+        if(other_node == j){
+            continue;
+        }
+        edge->weight = H[assignments[other_node]][assignments[j]];
+    }
 
-//     }else{
-//         // When there are no candidates, we return the same solution, but update tabu elements.
-//         best_neighbor_solution = current_solution;
-//     }
-    
-//     // Update old tabu elements expiration date
-//     for (auto& candidate_element : candidates) {
-//         if (candidate_element.second > 0) {
-//             candidate_element.second--;
-//         }
-//     }
+    for(const auto& edge: graph[j]){
+        const auto other_node = edge->start==j ? edge->end : edge->start;
+        if(other_node == i){
+            continue;
+        }
+        edge->weight = H[assignments[other_node]][assignments[i]];
+    }
 
-//     // Add elements with new expiration date to tabu list
-//     for (Cube* tabu_element: best_neighbor_tabu_list) {
-//         candidates[tabu_element] = distribution(generator);
-//     }
+    return {.assignments = assignments, .total_energy = current_solution.total_energy + best_diff};
+}
 
-//     return best_neighbor_solution;
-// }
-
-// Cubes AssignmentProblem::get_candidate_next_neighbor_cubes(Cube* candidate_cube, const Cubes& current_solution, Cubes& temp_tabu_list){        
-//     Cubes neighbor_solution;
-
-//     size_t i = 0;
-//     size_t length = current_solution.size();
-//     while (i < length && current_solution[i]->can_hold(candidate_cube)) {
-//         neighbor_solution.push_back(current_solution[i]);
-//         i++;
-//     }
-
-//     neighbor_solution.push_back(candidate_cube);
-    
-//     for(; i < current_solution.size(); i++) {
-//         if (candidate_cube->can_hold(current_solution[i])) {
-//             neighbor_solution.insert(neighbor_solution.end(), current_solution.begin()+i, current_solution.end());
-//             break;
-//         }
-//         else {
-//             temp_tabu_list.push_back(current_solution[i]);
-//         }
-//     }
-
-//     return neighbor_solution;
-// }
-
-// uint32_t AssignmentProblem::get_candidate_next_neighbor_score(Cube* candidate_cube, const Solution& current_solution){        
-
-//     auto cubes = current_solution.cubes;
-    
-//     size_t i = 0;
-//     size_t length = cubes.size();
-//     while (i < length && cubes[i]->can_hold(candidate_cube)) {
-//         i++;
-//     }
-
-//     uint32_t tabu_cubes_height = 0;
-//     while (i < length && !candidate_cube->can_hold(cubes[i])){
-//         tabu_cubes_height += cubes[i]->height;
-//         i++;
-//     }
-    
-//     return current_solution.score + candidate_cube->height - tabu_cubes_height;
-// }
-
-// void AssignmentProblem::print_results(const Cubes& results) {
-//     for (const Cube* cube: results) {
-//         std::cout << *cube << std::endl;
-//     }
-// }
+void AssignmentProblem::print_results(const Solution& solution) {
+    for (const auto& assignment: solution.assignments) {
+        std::cout << (int)assignment << " ";
+    }
+    std::cout << "[ score : " << solution.total_energy << " ]" << std::endl;
+}

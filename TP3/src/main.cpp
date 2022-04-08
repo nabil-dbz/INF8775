@@ -19,14 +19,13 @@ int main(int argc, char *argv[])
     bool should_print_results = false;
     std::istringstream(argv[2]) >> should_print_results;
 
-    std::unique_ptr<AssignmentProblem> highest_tower_problem = std::make_unique<AssignmentProblem>(file_path);
+    std::unique_ptr<AssignmentProblem> assignment_problem = std::make_unique<AssignmentProblem>(file_path);
 
     const std::clock_t start_time = std::clock();
 
     const std::clock_t end_time = std::clock();
 
-    if (should_print_results)
-        // AssignmentProblem::print_results(results.cubes);
+    const Solution solution = assignment_problem->tabu_algorithm(should_print_results);
 
     return 0;
 }
