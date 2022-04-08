@@ -19,8 +19,7 @@ void AssignmentProblem::parse_file(const std::string& path) {
     // Read from the text file.
     std::ifstream file_reader(path);
 
-    // Use a while loop together with the getline() function to read the file line by line
-
+    // Parse number of sites, atom types, number of edges
     std::getline(file_reader, line);
     std::istringstream stream(line);
     size_t n_atoms, n_atom_types, n_edges;
@@ -29,6 +28,7 @@ void AssignmentProblem::parse_file(const std::string& path) {
 
     file_reader.ignore();
 
+    // Parse assignments constraints
     for(size_t i=0; i<n_atom_types; i++){
         std::string occurrences;
         file_reader >> occurrences;
@@ -37,11 +37,12 @@ void AssignmentProblem::parse_file(const std::string& path) {
 
     file_reader.ignore();
 
-    // int H[n_atom_types][n_atom_types];
+    // Init H matrix
     for(size_t i = 0; i < n_atom_types; i++){
         H.push_back(std::vector<int>(n_atom_types));
     }
 
+    // Parse values of matrix
     for(size_t i=0; i<n_atom_types; i++){
         for(size_t j=0; j<n_atom_types; j++){
             std::string occurrences;
@@ -52,10 +53,12 @@ void AssignmentProblem::parse_file(const std::string& path) {
 
     file_reader.ignore();
 
+    // Init graph
     for(size_t i=0; i<n_atoms; i++){
         graph.push_back(std::vector<Edge>());
     }
 
+    // Parse graph
     for(size_t i=0; i<n_edges; i++){
         std::string s;
         std::string e;
