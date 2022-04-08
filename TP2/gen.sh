@@ -1,5 +1,5 @@
 #!/bin/bash
-for n in {100,500,1000,5000,10000,50000,100000}; do
+for n in {5,100,500,1000,5000,10000,50000,100000}; do
 	for i in {1..10}; do
 		# Génération d'une permutation de 1 à 3n
 		shuf -i 1-$((3*$n)) |
