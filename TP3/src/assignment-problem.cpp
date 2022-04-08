@@ -83,7 +83,6 @@ Solution AssignmentProblem::get_random_solution(){
     std::random_device rd;
     std::mt19937 g(rd());
  
-
     for(size_t i = 0; i < assignments_contraint.size(); i++){
         const uint32_t constraint = assignments_contraint[i]; // combien de type i
         for(size_t j = 0; j < constraint; j++){
@@ -109,7 +108,7 @@ int AssignmentProblem::get_total_energy(const std::vector<uint8_t>& assignments)
 }
 
 Solution AssignmentProblem::tabu_algorithm(bool should_print_results) {
-    // Get a greedy solution!
+    // Get a random solution!
     Solution current_solution = get_random_solution();
     Solution best_solution = current_solution;
 
@@ -135,22 +134,8 @@ Solution AssignmentProblem::get_best_neighbor_solution(Solution& current_solutio
 
             int diff = 0;
 
-            for(const auto& edge: graph[i]){
-                const auto other_node = edge->start==i ? edge->end : edge->start;
-                if(other_node == j){
-                    continue;
-                }
-                diff += H[assignments[other_node]][assignments[j]] - edge->weight;
-            }
-
-            for(const auto& edge: graph[j]){
-                const auto other_node = edge->start==i ? edge->end : edge->start;
-                if(other_node == i){
-                    continue;
-                }
-                diff += H[assignments[other_node]][assignments[i]] - edge->weight;
-            }
-
+            diff += get_node_new_energy_diff(assignments, i, j);
+            diff += get_node_new_energy_diff(assignments, j, i);
 
             if(diff < best_diff){
                 best_pair = {i, j};
@@ -159,26 +144,30 @@ Solution AssignmentProblem::get_best_neighbor_solution(Solution& current_solutio
         }
     }
 
-    const auto i = best_pair.first;
-    const auto j = best_pair.second;
+    std::swap(assignments[best_pair.first], assignments[best_pair.second]);
 
-    for(const auto& edge: graph[i]){
-        const auto other_node = edge->start==i ? edge->end : edge->start;
-        if(other_node == j){
-            continue;
-        }
-        edge->weight = H[assignments[other_node]][assignments[j]];
-    }
-
-    for(const auto& edge: graph[j]){
-        const auto other_node = edge->start==j ? edge->end : edge->start;
-        if(other_node == i){
-            continue;
-        }
-        edge->weight = H[assignments[other_node]][assignments[i]];
-    }
+    update_node_edges(best_pair.first, assignments);
+    update_node_edges(best_pair.second, assignments);
 
     return {.assignments = assignments, .total_energy = current_solution.total_energy + best_diff};
+}
+
+void AssignmentProblem::update_node_edges(size_t node, const std::vector<uint8_t>& assignments){
+    for(const auto& edge: graph[node]){
+        edge->weight = H[assignments[edge->start]][assignments[edge->end]];
+    }
+}
+
+int AssignmentProblem::get_node_new_energy_diff(const std::vector<uint8_t>& assignments, size_t node, size_t swap_node){
+    int diff = 0;
+    for(const auto& edge: graph[node]){
+        const auto other_node = edge->start==node ? edge->end : edge->start;
+        if(other_node == swap_node){
+            continue;
+        }
+        diff += H[assignments[other_node]][assignments[swap_node]] - edge->weight;
+    }
+    return diff;
 }
 
 void AssignmentProblem::print_results(const Solution& solution) {
@@ -186,4 +175,5 @@ void AssignmentProblem::print_results(const Solution& solution) {
         std::cout << (int)assignment << " ";
     }
     std::cout << "[ score : " << solution.total_energy << " ]" << std::endl;
+    std::cout << "[ score vrai : " << get_total_energy(solution.assignments) << " ]" << std::endl;
 }

@@ -20,13 +20,15 @@ class AssignmentProblem {
     AssignmentProblem() {}
     AssignmentProblem(const std::string& path);
 
-    static void print_results(const Solution& solution);
+    void print_results(const Solution& solution);
     Solution tabu_algorithm(bool should_print_results);
 
   private:
     Solution get_best_neighbor_solution(Solution& current_solution);
     Solution get_random_solution();
     int get_total_energy(const std::vector<uint8_t>& assignments);
+    int get_node_new_energy_diff(const std::vector<uint8_t>& assignments, size_t node, size_t swap_node);
+    void update_node_edges(size_t node, const std::vector<uint8_t>& assignments);
 
     void parse_file(const std::string& path);
     
