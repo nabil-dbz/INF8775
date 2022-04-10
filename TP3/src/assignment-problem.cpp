@@ -7,10 +7,9 @@
 #include <vector>
 #include <random>
 
-const int NO_LAST = -1;
-
-AssignmentProblem::AssignmentProblem(const std::string& path): distribution(7,10) {
+AssignmentProblem::AssignmentProblem(const std::string& path) {
     parse_file(path);
+    std::srand(time(0));
 }
 
 void AssignmentProblem::parse_file(const std::string& path) {
@@ -33,7 +32,7 @@ void AssignmentProblem::parse_file(const std::string& path) {
     for(size_t i=0; i<n_atom_types; i++){
         std::string occurrences;
         file_reader >> occurrences;
-        assignments_contraint.push_back(std::stoi(occurrences));
+        assignments_constraint.push_back(std::stoi(occurrences));
     }
 
     file_reader.ignore();
@@ -77,14 +76,64 @@ void AssignmentProblem::parse_file(const std::string& path) {
     file_reader.close();
 }
 
+Solution AssignmentProblem::get_greedy_solution(size_t s){
+    // Mark all the vertices as not visited
+    std::vector<int8_t> assignments(graph.size());
+    for(size_t i = 0; i < graph.size(); i++)
+        assignments[i] = -1;
+ 
+    // Create a queue for BFS
+    std::deque<size_t> queue;
+
+    // Mark the current node as visited and enqueue it
+    queue.push_back(s);
+
+    // affect random atom type to the start node
+    const uint8_t atom_type = std::rand() % assignments_constraint.size();
+    assignments[s] = atom_type;
+    assignments_constraint[atom_type]--;
+ 
+    while(!queue.empty())
+    {
+        // Dequeue a vertex from queue
+        s = queue.front();
+        queue.pop_front();
+ 
+        // Assign types to nodes
+        for(auto& edge: graph[s]){
+            const auto other_node = edge->get_other_node(s);
+            if (assignments[other_node] == -1){
+                
+                // real algo.
+                int min_type = -1;
+                int min_interaction = INT32_MAX;
+                for(size_t atom_type = 0; atom_type < assignments_constraint.size(); atom_type++){
+                    if(assignments_constraint[atom_type] == 0) continue;
+                    if(H[atom_type][assignments[s]] < min_interaction){
+                        min_interaction = H[atom_type][assignments[s]];
+                        min_type = atom_type;
+                    }
+                }
+                assignments[other_node] = min_type;
+                assignments_constraint[min_type]--;
+                queue.push_back(other_node);
+            }
+        }
+    }
+
+    const auto res_assignments = std::vector<uint8_t>(assignments.begin(), assignments.end());
+    const auto res_total_energy = get_total_energy(res_assignments);
+    return {.assignments=res_assignments, .total_energy=res_total_energy};
+}
+
 Solution AssignmentProblem::get_random_solution(){
     Solution random_solution;
 
     std::random_device rd;
     std::mt19937 g(rd());
  
-    for(size_t i = 0; i < assignments_contraint.size(); i++){
-        const uint32_t constraint = assignments_contraint[i]; // combien de type i
+    for(size_t i = 0; i < assignments_constraint.size(); i++){
+        const uint32_t constraint = assignments_constraint[i]; // combien de type i
         for(size_t j = 0; j < constraint; j++){
             random_solution.assignments.push_back(i);
         }
@@ -109,11 +158,21 @@ int AssignmentProblem::get_total_energy(const std::vector<uint8_t>& assignments)
 
 Solution AssignmentProblem::tabu_algorithm(bool should_print_results) {
     // Get a random solution!
-    Solution current_solution = get_random_solution();
-    Solution best_solution = current_solution;
+    // Solution current_solution = get_random_solution();
 
+    // Get a greedy solution
+    const size_t start_node = std::rand() % graph.size();
+    Solution current_solution = get_greedy_solution(start_node);
+
+    print_results(current_solution);
+
+    Solution best_solution = current_solution;
+    
+    // tabu list
+    std::unordered_map<size_t, int8_t> tabu; 
+    
     while (true) {
-        current_solution = get_best_neighbor_solution(current_solution);  
+        current_solution = get_best_neighbor_solution(current_solution, tabu);  
         if (current_solution.total_energy < best_solution.total_energy && should_print_results) {
             best_solution = current_solution;
             print_results(best_solution);
@@ -123,14 +182,15 @@ Solution AssignmentProblem::tabu_algorithm(bool should_print_results) {
     return best_solution;
 }
 
-Solution AssignmentProblem::get_best_neighbor_solution(Solution& current_solution) {
+Solution AssignmentProblem::get_best_neighbor_solution(Solution& current_solution, std::unordered_map<size_t, int8_t>& tabu) {
     auto assignments = current_solution.assignments;
     int best_diff = INT32_MAX;
     std::pair<size_t, size_t> best_pair = {};
-    
+
     for(size_t i = 0; i < assignments.size(); i++) {
         for(size_t j = i+1; j < assignments.size(); j++){
             if(assignments[i] == assignments[j]) continue;
+            if (tabu.find(i+j) != tabu.end()) continue;
 
             int diff = 0;
 
@@ -141,6 +201,19 @@ Solution AssignmentProblem::get_best_neighbor_solution(Solution& current_solutio
                 best_pair = {i, j};
                 best_diff = diff;
             }
+        }
+    }
+
+    // add swapping elements to tabu list
+    tabu[best_pair.first+best_pair.second] = 10 + std::rand() % 4;
+
+    // suppress elements
+    for (auto el = tabu.begin(); el != tabu.end(); /**/) {
+        if (el->second - 1 == 0) {
+            tabu.erase(el++);
+        } else {
+            el->second = el->second - 1;
+            ++el;
         }
     }
 
@@ -161,7 +234,7 @@ void AssignmentProblem::update_node_edges(size_t node, const std::vector<uint8_t
 int AssignmentProblem::get_node_new_energy_diff(const std::vector<uint8_t>& assignments, size_t node, size_t swap_node){
     int diff = 0;
     for(const auto& edge: graph[node]){
-        const auto other_node = edge->start==node ? edge->end : edge->start;
+        const auto other_node = edge->get_other_node(node);
         if(other_node == swap_node){
             continue;
         }
@@ -175,5 +248,5 @@ void AssignmentProblem::print_results(const Solution& solution) {
         std::cout << (int)assignment << " ";
     }
     std::cout << "[ score : " << solution.total_energy << " ]" << std::endl;
-    std::cout << "[ score vrai : " << get_total_energy(solution.assignments) << " ]" << std::endl;
+    // std::cout << "[ score vrai : " << get_total_energy(solution.assignments) << " ]" << std::endl;
 }

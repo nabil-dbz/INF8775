@@ -21,10 +21,6 @@ int main(int argc, char *argv[])
 
     std::unique_ptr<AssignmentProblem> assignment_problem = std::make_unique<AssignmentProblem>(file_path);
 
-    const std::clock_t start_time = std::clock();
-
-    const std::clock_t end_time = std::clock();
-
     const Solution solution = assignment_problem->tabu_algorithm(should_print_results);
 
     return 0;
