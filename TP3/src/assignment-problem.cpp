@@ -187,6 +187,7 @@ Solution AssignmentProblem::get_best_neighbor_solution(Solution& current_solutio
     int best_diff = INT32_MAX;
     std::pair<size_t, size_t> best_pair = {};
 
+    // parallelize here: https://github.com/bshoshany/thread-pool
     for(size_t i = 0; i < assignments.size(); i++) {
         for(size_t j = i+1; j < assignments.size(); j++){
             if(assignments[i] == assignments[j]) continue;
