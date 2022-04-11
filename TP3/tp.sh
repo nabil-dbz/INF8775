@@ -13,7 +13,7 @@ while getopts hpte:a:c: opt; do
   esac
 done
 
-if [ -z "$input_file_name" ] then
+if [ -z "$input_file_name" ]; then
   echo "ERRO: Missing required input: <file-name>"
   exit 1
 fi
