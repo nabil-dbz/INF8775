@@ -1,0 +1,13 @@
+Test1 (N100_K4): 
+Baseline : 3239
+Best (Gauthier) : 2781
+Moi: 2681
+
+Test2 (N500_K6) :
+Baseline : 47110
+Best (Gauthier) : 34521
+Moi: 
+
+Test3 (N1000_K6) :
+Baseline : 352852
+Best (Gauthier) : 321007
