@@ -7,7 +7,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <random>
-#include "edge.h"
 #include "thread-pool.hpp"
 
 
