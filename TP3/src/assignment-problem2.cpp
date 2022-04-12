@@ -157,8 +157,31 @@ Solution2 AssignmentProblem2::get_best_neighbor_solution(Solution2& current_solu
     // parallelize here: https://github.com/bshoshany/thread-pool
     const auto n_nodes = std::min((size_t)5, assignments.size());
 
-    for (size_t j = 0; j < n_nodes; j++){
-        const size_t node = std::rand() % assignments.size();
+    // int min = INT32_MAX, max = INT32_MIN;
+    // size_t min_node = 0, max_node = 0;
+    // for (size_t i = 0; i < current_solution.node_energies.size(); i++)
+    // {
+    //     const auto value = current_solution.node_energies[i];
+
+    //     if (value < min) {
+    //         min = value;
+    //         min_node = i;
+    //     }
+ 
+    //     if (value > max) {
+    //         max = value;
+    //         max_node = i;
+    //     }
+    // }
+    
+    auto nodes = std::unordered_set<std::size_t>();
+    for (size_t i = 0; i < n_nodes; i++)
+    {
+        nodes.insert(std::rand() % assignments.size());
+    }
+    
+
+    for (const auto& node: nodes){
         for(size_t i = 0; i < assignments.size(); i++) {
             if( i == node) continue;
             if(assignments[i] == assignments[node]) continue;
@@ -192,8 +215,8 @@ Solution2 AssignmentProblem2::get_best_neighbor_solution(Solution2& current_solu
     current_solution.node_energies[best_pair.first] += best_diffs.first;
     current_solution.node_energies[best_pair.second] += best_diffs.second;
 
-    update_node_energies(current_solution, best_pair.first, best_pair.first);
-    update_node_energies(current_solution, best_pair.second, best_pair.second);
+    update_node_energies(current_solution, best_pair.first, best_pair.second);
+    update_node_energies(current_solution, best_pair.second, best_pair.first);
     
     std::swap(assignments[best_pair.first], assignments[best_pair.second]);
 
