@@ -177,7 +177,7 @@ Solution2 AssignmentProblem2::get_best_neighbor_solution(Solution2& current_solu
     }
 
     // add swapping elements to tabu list
-    tabu[best_pair.first+best_pair.second] = 4 + std::rand() % 4;
+    tabu[best_pair.first+best_pair.second] = 10 + std::rand() % 4;
 
     // suppress elements
     for (auto el = tabu.begin(); el != tabu.end(); /**/) {
@@ -224,6 +224,4 @@ void AssignmentProblem2::print_results(const Solution2& solution) {
     }
     std::cout << "[ score : " << solution.total_energy / 2 << " ]" << std::endl;
     // std::cout << "[ score autre: " << std::accumulate(solution.node_energies.begin(), solution.node_energies.end(), 0) / 2 << " ]" << std::endl;
-
-    // std::cout << "[ score vrai : " << get_total_energy(solution.assignments) << " ]" << std::endl;
 }
