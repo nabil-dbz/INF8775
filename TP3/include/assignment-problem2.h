@@ -1,5 +1,5 @@
-#ifndef ASSIGNMENT_PROBLEM
-#define ASSIGNMENT_PROBLEM
+#ifndef ASSIGNMENT_PROBLEM2
+#define ASSIGNMENT_PROBLEM2
 
 #include <string>
 #include <vector>
@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <random>
 #include "edge.h"
+#include "thread-pool.hpp"
 
 
 struct Solution2 {  
@@ -29,12 +30,16 @@ class AssignmentProblem2 {
     Solution2 get_best_neighbor_solution(Solution2& current_solution, std::unordered_map<size_t, int8_t>& tabu);
     int get_node_new_energy_diff(const Solution2& solution, size_t node, size_t swap_node);
     void update_node_energies(Solution2& solution, size_t node, size_t swap_node);
+    int get_total_energy(const std::vector<uint8_t>& assignments);
+    Solution2 get_random_solution();
 
     void parse_file(const std::string& path);
 
     std::vector<std::vector<size_t>> graph;
     std::vector<std::vector<int>> H;
     std::vector<uint32_t> assignments_constraint;
+    thread_pool pool;
+
 };
 
 #endif

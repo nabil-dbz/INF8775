@@ -75,6 +75,9 @@ void AssignmentProblem2::parse_file(const std::string& path) {
 
 Solution2 AssignmentProblem2::get_greedy_solution(size_t s){
     // Init solution
+    auto constraints = std::vector<uint32_t>();
+    std::copy(assignments_constraint.begin(), assignments_constraint.end(), std::back_inserter(constraints));
+
     std::vector<int8_t> assignments(graph.size());
     std::vector<int> node_energies(graph.size());
     int total_energy = 0;
@@ -89,9 +92,9 @@ Solution2 AssignmentProblem2::get_greedy_solution(size_t s){
     queue.push_back(s);
 
     // affect random atom type to the start node
-    const uint8_t atom_type = std::rand() % assignments_constraint.size();
+    const uint8_t atom_type = std::rand() % constraints.size();
     assignments[s] = atom_type;
-    assignments_constraint[atom_type]--;
+    constraints[atom_type]--;
 
     while(!queue.empty())
     {
@@ -105,15 +108,15 @@ Solution2 AssignmentProblem2::get_greedy_solution(size_t s){
                 // real algo.
                 int min_type = -1;
                 int min_interaction = INT32_MAX;
-                for(size_t atom_type = 0; atom_type < assignments_constraint.size(); atom_type++){
-                    if(assignments_constraint[atom_type] == 0) continue;
+                for(size_t atom_type = 0; atom_type < constraints.size(); atom_type++){
+                    if(constraints[atom_type] == 0) continue;
                     if(H[atom_type][assignments[s]] < min_interaction){
                         min_interaction = H[atom_type][assignments[s]];
                         min_type = atom_type;
                     }
                 }
                 assignments[neighbor] = min_type;
-                assignments_constraint[min_type]--;
+                constraints[min_type]--;
                 queue.push_back(neighbor);
             }
             const auto interaction_energy = H[assignments[neighbor]][assignments[s]];
@@ -127,9 +130,14 @@ Solution2 AssignmentProblem2::get_greedy_solution(size_t s){
 }
 
 Solution2 AssignmentProblem2::tabu_algorithm(bool should_print_results) {
-    // Get a greedy solution
+    //Get a greedy solution
+
+    Solution2 random_solution = get_random_solution();
     const size_t start_node = std::rand() % graph.size();
-    Solution2 current_solution = get_greedy_solution(start_node);
+    Solution2 greedy_solution = get_greedy_solution(start_node);
+
+    Solution2 current_solution = greedy_solution.total_energy < random_solution.total_energy ? greedy_solution : random_solution;
+
 
     print_results(current_solution);
     // return current_solution;
@@ -154,50 +162,39 @@ Solution2 AssignmentProblem2::get_best_neighbor_solution(Solution2& current_solu
     std::pair<size_t, size_t> best_pair = {};
     std::pair<int, int> best_diffs = {};
 
-    // parallelize here: https://github.com/bshoshany/thread-pool
     const auto n_nodes = std::min((size_t)5, assignments.size());
-
-    // int min = INT32_MAX, max = INT32_MIN;
-    // size_t min_node = 0, max_node = 0;
-    // for (size_t i = 0; i < current_solution.node_energies.size(); i++)
-    // {
-    //     const auto value = current_solution.node_energies[i];
-
-    //     if (value < min) {
-    //         min = value;
-    //         min_node = i;
-    //     }
- 
-    //     if (value > max) {
-    //         max = value;
-    //         max_node = i;
-    //     }
-    // }
     
-    auto nodes = std::unordered_set<std::size_t>();
+    auto nodes = std::vector<size_t>();
+
     for (size_t i = 0; i < n_nodes; i++)
     {
-        nodes.insert(std::rand() % assignments.size());
+        nodes.push_back(std::rand() % assignments.size());
     }
-    
 
-    for (const auto& node: nodes){
-        for(size_t i = 0; i < assignments.size(); i++) {
-            if( i == node) continue;
-            if(assignments[i] == assignments[node]) continue;
-            if (tabu.find(i+node) != tabu.end()) continue;
+    // parallelized loop, ref: https://github.com/bshoshany/thread-pool
+    auto loop = [this, &tabu, &best_diff, &best_pair, &assignments, &nodes, &current_solution, &best_diffs](const size_t &start, const size_t &end)
+    {
+        for (size_t i = start; i < end; i++) {
+            const auto node = nodes[i];
+            for(size_t i = 0; i < assignments.size(); i++) {
+                if( i == node) continue;
+                if(assignments[i] == assignments[node]) continue;
+                if (tabu.find(i+node) != tabu.end()) continue;
 
-            int energy_diff_node = get_node_new_energy_diff(current_solution, node, i);
+                int energy_diff_node = get_node_new_energy_diff(current_solution, node, i);
 
-            int energy_diff_swap_node = get_node_new_energy_diff(current_solution, i, node);
+                int energy_diff_swap_node = get_node_new_energy_diff(current_solution, i, node);
 
-            if(energy_diff_node +  energy_diff_swap_node < best_diff){
-                best_pair = {node, i};
-                best_diffs = {energy_diff_node, energy_diff_swap_node};
-                best_diff = energy_diff_node +  energy_diff_swap_node;
+                if(energy_diff_node +  energy_diff_swap_node < best_diff){
+                    best_pair = {node, i};
+                    best_diffs = {energy_diff_node, energy_diff_swap_node};
+                    best_diff = energy_diff_node +  energy_diff_swap_node;
+                }
             }
         }
-    }
+    };
+
+    pool.parallelize_loop(0, nodes.size(), loop);
 
     // add swapping elements to tabu list
     tabu[best_pair.first+best_pair.second] = 10 + std::rand() % 4;
@@ -212,11 +209,11 @@ Solution2 AssignmentProblem2::get_best_neighbor_solution(Solution2& current_solu
         }
     }
 
-    current_solution.node_energies[best_pair.first] += best_diffs.first;
-    current_solution.node_energies[best_pair.second] += best_diffs.second;
+    // current_solution.node_energies[best_pair.first] += best_diffs.first;
+    // current_solution.node_energies[best_pair.second] += best_diffs.second;
 
-    update_node_energies(current_solution, best_pair.first, best_pair.second);
-    update_node_energies(current_solution, best_pair.second, best_pair.first);
+    // update_node_energies(current_solution, best_pair.first, best_pair.second);
+    // update_node_energies(current_solution, best_pair.second, best_pair.first);
     
     std::swap(assignments[best_pair.first], assignments[best_pair.second]);
 
@@ -241,10 +238,42 @@ int AssignmentProblem2::get_node_new_energy_diff(const Solution2& solution, size
     return diff;
 }
 
+int AssignmentProblem2::get_total_energy(const std::vector<uint8_t>& assignments){
+    int total_energy = 0;
+
+    for(size_t node = 0; node < graph.size(); node++){
+        for(const auto& neighbor: graph[node]){
+            total_energy += H[assignments[node]][assignments[neighbor]];
+        }
+    }
+    
+    return total_energy;
+}
+
 void AssignmentProblem2::print_results(const Solution2& solution) {
     for (const auto& assignment: solution.node_assignments) {
         std::cout << (int)assignment << " ";
     }
     std::cout << "[ score : " << solution.total_energy / 2 << " ]" << std::endl;
     // std::cout << "[ score autre: " << std::accumulate(solution.node_energies.begin(), solution.node_energies.end(), 0) / 2 << " ]" << std::endl;
+}
+
+Solution2 AssignmentProblem2::get_random_solution(){
+    Solution2 random_solution;
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+ 
+    for(size_t i = 0; i < assignments_constraint.size(); i++){
+        const uint32_t constraint = assignments_constraint[i]; // combien de type i
+        for(size_t j = 0; j < constraint; j++){
+            random_solution.node_assignments.push_back(i);
+        }
+    }
+
+    std::shuffle(random_solution.node_assignments.begin(), random_solution.node_assignments.end(), g);
+
+    random_solution.total_energy = get_total_energy(random_solution.node_assignments);
+
+    return random_solution;
 }
