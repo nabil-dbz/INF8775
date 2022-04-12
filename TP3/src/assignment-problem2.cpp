@@ -155,7 +155,7 @@ Solution2 AssignmentProblem2::get_best_neighbor_solution(Solution2& current_solu
     std::pair<int, int> best_diffs = {};
 
     // parallelize here: https://github.com/bshoshany/thread-pool
-    const auto n_nodes = std::min((size_t)10, assignments.size());
+    const auto n_nodes = std::min((size_t)5, assignments.size());
 
     for (size_t j = 0; j < n_nodes; j++){
         const size_t node = std::rand() % assignments.size();
@@ -223,7 +223,7 @@ void AssignmentProblem2::print_results(const Solution2& solution) {
         std::cout << (int)assignment << " ";
     }
     std::cout << "[ score : " << solution.total_energy / 2 << " ]" << std::endl;
-    std::cout << "[ score autre: " << std::accumulate(solution.node_energies.begin(), solution.node_energies.end(), 0) / 2 << " ]" << std::endl;
+    // std::cout << "[ score autre: " << std::accumulate(solution.node_energies.begin(), solution.node_energies.end(), 0) / 2 << " ]" << std::endl;
 
     // std::cout << "[ score vrai : " << get_total_energy(solution.assignments) << " ]" << std::endl;
 }
