@@ -1,4 +1,4 @@
-#include "assigment-problem.h"
+#include "assignment-problem.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -51,11 +51,9 @@ void AssignmentProblem::parse_file(const std::string& path) {
         }  
     }
 
-    file_reader.ignore();
-
     // Init graph
     for(size_t i=0; i<n_atoms; i++){
-        graph.push_back(std::vector<std::shared_ptr<Edge>>());
+        graph.push_back(std::vector<size_t>());
     }
 
     // Parse graph
@@ -66,10 +64,8 @@ void AssignmentProblem::parse_file(const std::string& path) {
         size_t start = std::stoi(s);
         size_t end = std::stoi(e);
 
-        const auto edge = std::make_shared<Edge>(start, end);
-        edges.push_back(edge);
-        graph[start].push_back(edge);
-        graph[end].push_back(edge);
+        graph[start].push_back(end);
+        graph[end].push_back(start);
     }
 
     // Close the file.
@@ -77,8 +73,10 @@ void AssignmentProblem::parse_file(const std::string& path) {
 }
 
 Solution AssignmentProblem::get_greedy_solution(size_t s){
-    // Mark all the vertices as not visited
+    // Init solution
     std::vector<int8_t> assignments(graph.size());
+    int total_energy = 0;
+
     for(size_t i = 0; i < graph.size(); i++)
         assignments[i] = -1;
  
@@ -92,7 +90,7 @@ Solution AssignmentProblem::get_greedy_solution(size_t s){
     const uint8_t atom_type = std::rand() % assignments_constraint.size();
     assignments[s] = atom_type;
     assignments_constraint[atom_type]--;
- 
+
     while(!queue.empty())
     {
         // Dequeue a vertex from queue
@@ -100,10 +98,8 @@ Solution AssignmentProblem::get_greedy_solution(size_t s){
         queue.pop_front();
  
         // Assign types to nodes
-        for(auto& edge: graph[s]){
-            const auto other_node = edge->get_other_node(s);
-            if (assignments[other_node] == -1){
-                
+        for(const auto& neighbor: graph[s]){
+            if (assignments[neighbor] == -1){
                 // real algo.
                 int min_type = -1;
                 int min_interaction = INT32_MAX;
@@ -114,16 +110,17 @@ Solution AssignmentProblem::get_greedy_solution(size_t s){
                         min_type = atom_type;
                     }
                 }
-                assignments[other_node] = min_type;
+                assignments[neighbor] = min_type;
                 assignments_constraint[min_type]--;
-                queue.push_back(other_node);
+                queue.push_back(neighbor);
             }
+            const auto interaction_energy = H[assignments[neighbor]][assignments[s]];
+            total_energy += interaction_energy;
         }
     }
 
     const auto res_assignments = std::vector<uint8_t>(assignments.begin(), assignments.end());
-    const auto res_total_energy = get_total_energy(res_assignments);
-    return {.assignments=res_assignments, .total_energy=res_total_energy};
+    return {.assignments=res_assignments, .total_energy=total_energy / 2};
 }
 
 Solution AssignmentProblem::get_random_solution(){
@@ -149,11 +146,13 @@ Solution AssignmentProblem::get_random_solution(){
 int AssignmentProblem::get_total_energy(const std::vector<uint8_t>& assignments){
     int total_energy = 0;
 
-    for(const auto& edge: edges){
-        edge->weight = H[assignments[edge->start]][assignments[edge->end]];
-        total_energy += edge->weight;
+    for(size_t node = 0; node < graph.size(); node++){
+        for(const auto& neighbor: graph[node]){
+            total_energy += H[assignments[node]][assignments[neighbor]];
+        }
     }
-    return total_energy;
+    
+    return total_energy / 2;
 }
 
 Solution AssignmentProblem::tabu_algorithm(bool should_print_results) {
@@ -206,7 +205,7 @@ Solution AssignmentProblem::get_best_neighbor_solution(Solution& current_solutio
     }
 
     // add swapping elements to tabu list
-    tabu[best_pair.first+best_pair.second] = 10 + std::rand() % 4;
+    tabu[best_pair.first+best_pair.second] = 4 + std::rand() % 4;
 
     // suppress elements
     for (auto el = tabu.begin(); el != tabu.end(); /**/) {
@@ -220,26 +219,16 @@ Solution AssignmentProblem::get_best_neighbor_solution(Solution& current_solutio
 
     std::swap(assignments[best_pair.first], assignments[best_pair.second]);
 
-    update_node_edges(best_pair.first, assignments);
-    update_node_edges(best_pair.second, assignments);
-
     return {.assignments = assignments, .total_energy = current_solution.total_energy + best_diff};
-}
-
-void AssignmentProblem::update_node_edges(size_t node, const std::vector<uint8_t>& assignments){
-    for(const auto& edge: graph[node]){
-        edge->weight = H[assignments[edge->start]][assignments[edge->end]];
-    }
 }
 
 int AssignmentProblem::get_node_new_energy_diff(const std::vector<uint8_t>& assignments, size_t node, size_t swap_node){
     int diff = 0;
-    for(const auto& edge: graph[node]){
-        const auto other_node = edge->get_other_node(node);
-        if(other_node == swap_node){
+    for(const auto& neighbor: graph[node]){
+        if(neighbor == swap_node){
             continue;
         }
-        diff += H[assignments[other_node]][assignments[swap_node]] - edge->weight;
+        diff += H[assignments[neighbor]][assignments[swap_node]] - H[assignments[neighbor]][assignments[node]];
     }
     return diff;
 }
@@ -249,5 +238,4 @@ void AssignmentProblem::print_results(const Solution& solution) {
         std::cout << (int)assignment << " ";
     }
     std::cout << "[ score : " << solution.total_energy << " ]" << std::endl;
-    // std::cout << "[ score vrai : " << get_total_energy(solution.assignments) << " ]" << std::endl;
 }
