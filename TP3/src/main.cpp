@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <ctime>
-#include "assigment-problem.h"
+#include "assignment-problem2.h"
  
 
 int main(int argc, char *argv[])
@@ -19,9 +19,9 @@ int main(int argc, char *argv[])
     bool should_print_results = false;
     std::istringstream(argv[2]) >> should_print_results;
 
-    std::unique_ptr<AssignmentProblem> assignment_problem = std::make_unique<AssignmentProblem>(file_path);
+    std::unique_ptr<AssignmentProblem2> assignment_problem = std::make_unique<AssignmentProblem2>(file_path);
 
-    const Solution solution = assignment_problem->tabu_algorithm(should_print_results);
+    const Solution2 solution = assignment_problem->tabu_algorithm(should_print_results);
 
     return 0;
 }
