@@ -61,7 +61,7 @@ all: $(BIN_PATH)/$(BIN_NAME)
 # Creation of the executable
 $(BIN_PATH)/$(BIN_NAME): $(OBJECTS)
 	@echo "Linking: $@"
-	$(CXX) $(OBJECTS) -o $@ ${LIBS}
+	$(CXX) -pthread $(OBJECTS) -o $@ ${LIBS}
 
 # Add dependency files, if they exist
 -include $(DEPS)

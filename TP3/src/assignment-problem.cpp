@@ -163,6 +163,12 @@ Solution AssignmentProblem::tabu_algorithm(bool should_print_results) {
     const size_t start_node = std::rand() % graph.size();
     Solution current_solution = get_greedy_solution(start_node);
 
+    for (size_t i = 0; i < current_solution.assignments.size(); i++) {
+        for (size_t j = i+1; j < current_solution.assignments.size(); j++) {
+            candidates.push_back({i, j});
+        }
+    }
+
     print_results(current_solution);
 
     Solution best_solution = current_solution;
@@ -187,22 +193,24 @@ Solution AssignmentProblem::get_best_neighbor_solution(Solution& current_solutio
     std::pair<size_t, size_t> best_pair = {};
 
     // parallelize here: https://github.com/bshoshany/thread-pool
-    for(size_t i = 0; i < assignments.size(); i++) {
-        for(size_t j = i+1; j < assignments.size(); j++){
-            if(assignments[i] == assignments[j]) continue;
-            if (tabu.find(i+j) != tabu.end()) continue;
+    auto loop = [this, &tabu, &best_diff, &best_pair, &assignments](const size_t &start, const size_t &end)
+    {
+        for (size_t i = start; i < end; i++) {
+            if (assignments[candidates[i].first] == assignments[candidates[i].second]) continue;
+            if (tabu.find(candidates[i].first + candidates[i].second) != tabu.end()) continue;
 
             int diff = 0;
 
-            diff += get_node_new_energy_diff(assignments, i, j);
-            diff += get_node_new_energy_diff(assignments, j, i);
+            diff += get_node_new_energy_diff(assignments, candidates[i].first, candidates[i].second);
+            diff += get_node_new_energy_diff(assignments, candidates[i].second, candidates[i].first);
 
-            if(diff < best_diff){
-                best_pair = {i, j};
+            if(diff < best_diff) {
+                best_pair = candidates[i];
                 best_diff = diff;
             }
         }
-    }
+    };
+    pool.parallelize_loop(0, candidates.size(), loop);
 
     // add swapping elements to tabu list
     tabu[best_pair.first+best_pair.second] = 4 + std::rand() % 4;

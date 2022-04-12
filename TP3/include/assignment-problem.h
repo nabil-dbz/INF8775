@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <random>
 #include "edge.h"
+#include "thread-pool.hpp"
 
 
 struct Solution {  
@@ -35,6 +36,8 @@ class AssignmentProblem {
     std::vector<std::vector<size_t>> graph;
     std::vector<std::vector<int>> H;
     std::vector<uint32_t> assignments_constraint;
+    std::vector<std::pair<size_t, size_t>> candidates;
+    thread_pool pool;
 };
 
 #endif
