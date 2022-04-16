@@ -144,7 +144,7 @@ Solution AssignmentProblem::get_best_neighbor_solution(Solution& current_solutio
     
     std::swap(assignments[best_pair.first], assignments[best_pair.second]);
 
-    return {.node_assignments = assignments, .total_energy = current_solution.total_energy + 2*best_diff};
+    return {.node_assignments = assignments, .total_energy = current_solution.total_energy + best_diff};
 }
 
 int AssignmentProblem::get_node_new_energy_diff(const Solution& solution, size_t node, size_t swap_node){
@@ -166,14 +166,14 @@ int AssignmentProblem::get_total_energy(const std::vector<uint8_t>& assignments)
         }
     }
     
-    return total_energy;
+    return total_energy / 2;
 }
 
 void AssignmentProblem::print_results(const Solution& solution) {
     for (const auto& assignment: solution.node_assignments) {
         std::cout << (int)assignment << " ";
     }
-    std::cout << "[ score : " << solution.total_energy / 2 << " ]" << std::endl;
+    std::cout << "[ score : " << solution.total_energy << " ]" << std::endl;
 }
 
 Solution AssignmentProblem::get_initial_solution(){
@@ -236,7 +236,7 @@ Solution AssignmentProblem::get_greedy_solution(){
     }
 
     const auto res_assignments = std::vector<uint8_t>(assignments.begin(), assignments.end());
-    return {.node_assignments=res_assignments, .total_energy=total_energy};
+    return {.node_assignments=res_assignments, .total_energy=total_energy / 2};
 }
 
 Solution AssignmentProblem::get_random_solution(){
