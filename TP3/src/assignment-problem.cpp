@@ -76,7 +76,7 @@ void AssignmentProblem::parse_file(const std::string& path) {
 Solution AssignmentProblem::tabu_algorithm(bool should_print_results) {
     Solution current_solution = get_initial_solution();
 
-    print_results(current_solution);
+    if(should_print_results) print_results(current_solution);
 
     Solution best_solution = current_solution;
     
@@ -97,7 +97,7 @@ Solution AssignmentProblem::get_best_neighbor_solution(Solution& current_solutio
     int best_diff = INT32_MAX;
     std::pair<size_t, size_t> best_pair = {};
 
-    const auto n_nodes = std::min((size_t)5, assignments.size());
+    const auto n_nodes = std::min((size_t)10, assignments.size());
     
     auto nodes = std::vector<size_t>();
 
@@ -173,7 +173,7 @@ void AssignmentProblem::print_results(const Solution& solution) {
     for (const auto& assignment: solution.node_assignments) {
         std::cout << (int)assignment << " ";
     }
-    std::cout << "[ score : " << solution.total_energy << " ]" << std::endl;
+    std::cout << std::endl;
 }
 
 Solution AssignmentProblem::get_initial_solution(){
